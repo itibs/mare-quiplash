@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiplash-like Game - Master</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+
+<body>
+    <div id="app" class="container">
+        <h1>Quiplash-like Game - Master</h1>
+        <div v-if="!started" class="section fade-in">
+            <div v-if="players.length === 0">
+                <h2>Waiting for players to join...</h2>
+            </div>
+            <div v-else-if="players.length < 4">
+                <h2>At least 4 players are required to play the game.</h2>
+            </div>
+            <div v-else-if="players.length % 2 === 1">
+                <h2>An even number of players is required to start the game.</h2>
+            </div>
+            <div v-else>
+                <h2>Start Game</h2>
+                <button @click="startGame">Start Game</button>
+            </div>
+            <div v-if="players.length > 0">
+                <div v-if="showScoreboard" class="section">
+                    <table class="scoreboard-table">
+                        <thead>
+                            <tr>
+                                <th>Players joined</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(player, index) in players" :key="player.id">
+                                <td>{{ player.name }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div v-else class="fade-in">
+            <div v-if="showRoundForm" class="section">
+                <h2>Round {{ crtRound }}</h2>
+            </div>
+            <div v-if="showEndgame" class="section">
+                <h2>Congrats {{ players[0].name }}!</h2>
+            </div>
+            <div v-if="showScoreboard" class="section">
+                <h2>Scoreboard</h2>
+                <table class="scoreboard-table ranking">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Player</th>
+                            <th>Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(player, index) in players" :key="player.id">
+                            <td class="rank">{{ index + 1 }}</td>
+                            <td>{{ player.name }}</td>
+                            <td>{{ player.score }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div v-if="showVoting" class="section">
+                <div class="prompt">{{ prompt }}</div>
+                <div class="answer-list">
+                    <div v-for="ans in votingAnswers" :key="ans.playerId" class="answer-item-static">
+                        {{ ans.text }}
+                    </div>
+                </div>
+            </div>
+            <div v-if="showVotingResults" class="section">
+                <div class="prompt">{{ prompt }}</div>
+                <div class="results-container">
+                    <div v-for="ans in votingAnswers" :key="ans.playerId" class="result-box">
+                        <div class="result-content">
+                            <div class="result-text">{{ ans.text }}</div>
+                            <div class="result-votes">{{ ans.votes }}</div>
+                        </div>
+                        <div class="result-player">{{ ans.playerName }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed } = Vue;
+
+        const app = createApp({
+            setup() {
+                const socket = io();
+                const started = ref(false);
+                const playerName = ref('');
+                const players = ref([]);
+                const crtRound = ref('');
+                const prompt = ref('');
+                const answer = ref('');
+                const showRoundForm = ref(false);
+                const showEndgame = ref(false);
+                const showVoting = ref(false);
+                const showVotingResults = ref(false);
+                const showScoreboard = ref(true);
+                const votingAnswers = ref([]);
+                const results = ref([]);
+
+                const startGame = () => {
+                    socket.emit('startGame');
+                };
+
+                const restartGame = () => {
+                    socket.emit('restartGame');
+                };
+
+                const submitAnswer = () => {
+                    if (answer.value) {
+                        socket.emit('submitAnswer', answer.value);
+                        showRoundForm.value = false;
+                    }
+                };
+
+                const vote = (answerId) => {
+                    socket.emit('vote', answerId);
+                    showVoting.value = false;
+                };
+
+                socket.on('started', (data) => {
+                    started.value = true;
+                    showScoreboard.value = false;
+                });
+
+                socket.on('playerList', (playerList) => {
+                    console.log(showScoreboard.value);
+                    players.value = playerList;
+                });
+
+                socket.on('roundStarted', (round) => {
+                    crtRound.value = round;
+                    showRoundForm.value = true;
+                    showVoting.value = false;
+                    showVotingResults.value = false;
+                    showScoreboard.value = false;
+                    results.value = [];
+                });
+
+                socket.on('startVoting', (mPrompt, mAnswers) => {
+                    prompt.value = mPrompt;
+                    votingAnswers.value = mAnswers;
+                    showVoting.value = true;
+                    showVotingResults.value = false;
+                });
+
+                socket.on('votingResults', (mPrompt, mAnswers) => {
+                    prompt.value = mPrompt;
+                    votingAnswers.value = mAnswers;
+                    showVoting.value = false;
+                    showVotingResults.value = true;
+                });
+
+                socket.on('roundEnd', (mPlayers) => {
+                    players.value = mPlayers.sort((p1, p2) => p2.score - p1.score);
+                    showVotingResults.value = false;
+                    showScoreboard.value = true;
+                });
+
+                socket.on('endGame', (mPlayers) => {
+                    players.value = mPlayers.sort((p1, p2) => p2.score - p1.score);
+                    showVotingResults.value = false;
+                    showRoundForm.value = false;
+                    showEndgame.value = true;
+                    showScoreboard.value = true;
+                });
+
+                socket.on('gameFull', () => {
+                    alert('The game is full. Please try again later.');
+                });
+
+                return {
+                    started,
+                    playerName,
+                    players,
+                    crtRound,
+                    prompt,
+                    answer,
+                    showRoundForm,
+                    showEndgame,
+                    showVoting,
+                    showScoreboard,
+                    showVotingResults,
+                    votingAnswers,
+                    results,
+                    startGame,
+                    restartGame,
+                    submitAnswer,
+                    vote
+                };
+            }
+        });
+
+        app.mount('#app');
+    </script>
+</body>
+
+</html>

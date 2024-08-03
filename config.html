@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiplash-like Game - Config</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+
+<body>
+    <div id="app" class="container">
+        <h1>Quiplash-like Game - Config</h1>
+        <h2>Prompts</h2>
+        <textarea v-model="rawPrompts" type="text"></textarea>
+        <br>
+        <button @click="sendPrompts">Update prompts</button>
+    </div>
+
+    <script>
+        const { createApp, ref, computed } = Vue;
+
+        const app = createApp({
+            setup() {
+                const socket = io();
+                const rawPrompts = ref('');
+
+                const sendPrompts = () => {
+                    const prompts = rawPrompts.value.split("\n");
+                    socket.emit('newPrompts', prompts);
+                };
+
+                return {
+                    rawPrompts,
+                    sendPrompts,
+                };
+            }
+        });
+
+        app.mount('#app');
+    </script>
+</body>
+
+</html>

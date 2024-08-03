@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiplash-like Game - Player</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+
+<body>
+    <div id="app" class="container">
+        <h1>Quiplash-like Game - Player</h1>
+        <div v-if="!joined" class="section fade-in">
+            <h2>Join Game</h2>
+            <input v-model="playerName" placeholder="Enter your name" class="name-input">
+            <button @click="joinGame">Join</button>
+        </div>
+
+        <div v-else class="fade-in">
+            <div v-if="prompt" class="section">
+                <div class="prompt">{{ prompt }}</div>
+            </div>
+            <div v-if="showAnswerForm" class="section">
+                <input v-model="answer" placeholder="Your answer" class="answer-input">
+                <button @click="submitAnswer">Submit Answer</button>
+            </div>
+            <div v-if="showVoting" class="section">
+                <h2>Vote for your favorite:</h2>
+                <div class="answer-list">
+                    <div v-for="ans in votingAnswers" :key="ans.playerId" class="answer-item"
+                        @click="vote(ans.playerId)">
+                        {{ ans.text }}
+                    </div>
+                </div>
+            </div>
+            <div v-if="results.length > 0" class="section">
+                <h2>Results:</h2>
+                <div class="results">
+                    <div v-for="result in results" :key="result.playerId">
+                        {{ result.name }}: {{ result.text }} (Votes: {{ result.votes }})
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed } = Vue;
+
+        const app = createApp({
+            setup() {
+                const socket = io();
+                const joined = ref(false);
+                const playerName = ref('');
+                const myPlayerId = ref('');
+                const players = ref([]);
+                const prompt = ref('');
+                const answer = ref('');
+                const showAnswerForm = ref(false);
+                const showVoting = ref(false);
+                const votingAnswers = ref([]);
+                const results = ref([]);
+
+                const joinGame = () => {
+                    if (playerName.value) {
+                        socket.emit('join', playerName.value);
+                    }
+                };
+
+                const submitAnswer = () => {
+                    if (answer.value) {
+                        socket.emit('submitAnswer', prompt.value, answer.value);
+                        showAnswerForm.value = false;
+                    }
+                };
+
+                const vote = (answerId) => {
+                    socket.emit('vote', answerId);
+                    showVoting.value = false;
+                };
+
+                socket.on('joined', (data) => {
+                    myPlayerId.value = data.playerId;
+                    joined.value = true;
+                });
+
+                socket.on('playerList', (playerList) => {
+                    players.value = playerList;
+                });
+
+                socket.on('newPrompt', (newPrompt) => {
+                    prompt.value = newPrompt;
+                    answer.value = '';
+                    showAnswerForm.value = true;
+                    showVoting.value = false;
+                    results.value = [];
+                });
+
+                socket.on('startVoting', (mPrompt, mAnswers) => {
+                    prompt.value = mPrompt;
+                    if (mAnswers.map((ans) => ans.playerId).includes(myPlayerId.value)) {
+                        showVoting.value = false;
+                    } else {
+                        votingAnswers.value = mAnswers.filter(a => a.playerId !== myPlayerId.value);
+                        showVoting.value = true;
+                    }
+                });
+
+                socket.on('roundEnd', (data) => {
+                    showVoting.value = false;
+                });
+
+                socket.on('gameFull', () => {
+                    alert('The game is full. Please try again later.');
+                });
+
+                return {
+                    joined,
+                    playerName,
+                    players,
+                    prompt,
+                    answer,
+                    showAnswerForm,
+                    showVoting,
+                    votingAnswers,
+                    results,
+                    joinGame,
+                    submitAnswer,
+                    vote
+                };
+            }
+        });
+
+        app.mount('#app');
+    </script>
+</body>
+
+</html>
