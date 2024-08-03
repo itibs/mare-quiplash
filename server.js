@@ -50,6 +50,10 @@ app.get('/config/', (req, res) => {
 io.on('connection', (socket) => {
     console.log('A user connected');
 
+    socket.on('getPlayerList', () => {
+        io.emit('playerList', players);
+    })
+
     socket.on('newPrompts', (prompts) => {
         crtPrompts = prompts;
     });

@@ -182,9 +182,7 @@
                     showScoreboard.value = true;
                 });
 
-                socket.on('gameFull', () => {
-                    alert('The game is full. Please try again later.');
-                });
+                socket.emit('getPlayerList');
 
                 return {
                     started,
