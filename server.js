@@ -46,6 +46,10 @@ app.get('/config/', (req, res) => {
     res.sendFile(path.join(__dirname, 'config.html'));
 });
 
+app.get('/version/', (req, res) => {
+    res.send("v1.1");
+});
+
 
 io.on('connection', (socket) => {
     console.log('A user connected');
