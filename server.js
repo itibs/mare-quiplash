@@ -50,6 +50,17 @@ app.get('/config/', (req, res) => {
 io.on('connection', (socket) => {
     console.log('A user connected');
 
+    socket.on('resetAll', () => {
+        players = [];
+        disconnectedPlayers = [];
+        questions = [];
+        answers = [];
+        votingPhase = false;
+        crtRound = 0;
+        nextQuestionToVote = 0;
+        cntVotes = 0;
+    });
+
     socket.on('getPlayerList', () => {
         io.emit('playerList', players);
     })
@@ -60,6 +71,9 @@ io.on('connection', (socket) => {
 
     // Handle player joining
     socket.on('join', (playerName) => {
+        if (players.find((p) => p.id === socket.id)) {
+            return;
+        }
         players.push({ id: socket.id, name: playerName, score: 0, prompts: [] });
         socket.emit('joined', { playerId: socket.id, players: players });
         console.log("Emitting playerList:")
@@ -109,7 +123,7 @@ io.on('connection', (socket) => {
                 setTimeout(() => {
                     nextQuestionToVote++;
                     startNextQuestionVoting();
-                }, 8000/SPEEDUP);
+                }, 8000 / SPEEDUP);
             }
         }
     });
@@ -165,7 +179,7 @@ function endRound() {
     setTimeout(() => {
         crtRound++;
         startRound();
-    }, 10000/SPEEDUP);
+    }, 10000 / SPEEDUP);
 }
 
 function getPlayerName(playerId) {
