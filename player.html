@@ -80,6 +80,7 @@
 
                 const vote = (answerId) => {
                     socket.emit('vote', answerId);
+                    showAnswerForm.value = false;
                     showVoting.value = false;
                 };
 
@@ -102,6 +103,7 @@
 
                 socket.on('startVoting', (mPrompt, mAnswers) => {
                     prompt.value = mPrompt;
+                    showAnswerForm.value = false;
                     if (mAnswers.map((ans) => ans.playerId).includes(myPlayerId.value)) {
                         showVoting.value = false;
                     } else {

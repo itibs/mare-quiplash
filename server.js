@@ -106,6 +106,20 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('forceStartVoting', () => {
+        startVoting();
+    });
+
+    socket.on('forceNextQuestionVote', () => {
+        mQuestion = questions[crtRound][nextQuestionToVote];
+        mAnswers = answers.filter((ans) => ans.prompt === mQuestion.prompt);
+        io.emit('votingResults', mQuestion.prompt, mAnswers);
+        setTimeout(() => {
+            nextQuestionToVote++;
+            startNextQuestionVoting();
+        }, 8000 / SPEEDUP);
+    });
+
     // Handle votes
     socket.on('vote', (answerId) => {
         if (votingPhase) {
@@ -157,7 +171,9 @@ function startRound() {
     answers = [];
     players.forEach((player) => {
         const playerQuestion = questions[crtRound].find((question) => question.players.includes(player));
-        io.to(player.id).emit('newPrompt', playerQuestion.prompt);
+        if (playerQuestion) {
+            io.to(player.id).emit('newPrompt', playerQuestion.prompt);
+        }
     })
 }
 

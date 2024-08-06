@@ -20,6 +20,10 @@
         <button @click="sendPrompts">Update prompts</button>
         <br><br>
         <button @click="resetAll">Reset Game</button>
+        <br><br>
+        <button @click="forceStartVoting">Force Start Voting</button>
+        <br><br>
+        <button @click="forceNextQuestionVote">Force Next Question Vote</button>
     </div>
 
     <script>
@@ -39,9 +43,19 @@
                     socket.emit('resetAll');
                 }
 
+                const forceStartVoting = () => {
+                    socket.emit('forceStartVoting');
+                }
+
+                const forceNextQuestionVote = () => {
+                    socket.emit('forceNextQuestionVote');
+                }
+
                 return {
                     rawPrompts,
                     sendPrompts,
+                    forceStartVoting,
+                    forceNextQuestionVote,
                     resetAll,
                 };
             }
