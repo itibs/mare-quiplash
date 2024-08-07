@@ -24,6 +24,16 @@
         <button @click="forceStartVoting">Force Start Voting</button>
         <br><br>
         <button @click="forceNextQuestionVote">Force Next Question Vote</button>
+        <br><br>
+        <select  class="dropdown" v-model="selectedPlayerToAnswer">
+            <option v-for="p in playersToAnswer" :key="p.id" :value="p.id">{{p.name}}</option>
+        </select>
+        <input v-model="playerAnswer" placeholder="Answer for player" class="name-input">
+        <button @click="sendPlayerAnswer">Send player answer</button>
+        <br><br>
+        <textarea v-model="stateToSend" type="text"></textarea>
+        <br>
+        <button @click="sendState">Send state</button>
     </div>
 
     <script>
@@ -32,7 +42,12 @@
         const app = createApp({
             setup() {
                 const socket = io();
+                const serverState = ref({});
                 const rawPrompts = ref('');
+                const stateToSend = ref('');
+                const playersToAnswer = ref([]);
+                const selectedPlayerToAnswer = ref('');
+                const playerAnswer = ref('');
 
                 const sendPrompts = () => {
                     const prompts = rawPrompts.value.split("\n");
@@ -51,11 +66,43 @@
                     socket.emit('forceNextQuestionVote');
                 }
 
+                const sendPlayerAnswer = () => {
+                    const plId = selectedPlayerToAnswer.value;
+                    //const pl = serverState.value.players.find((p) => p.id == plId);
+                    const crtRound = serverState.value.crtRound;
+                    const roundQuestions = serverState.value.questions[crtRound];
+                    const plQ = roundQuestions.find((q) => q.players.map((p) => p.id).includes(plId));
+                    socket.emit('submitAnswerAsPlayer', plId, plQ.prompt, playerAnswer.value);
+                }
+
+                const sendState = () => {
+                    socket.emit('sendState', JSON.parse(stateToSend));
+                }
+
+                socket.emit('receiveState');
+
+                socket.on('state_dump', (state) => {
+                    console.log(state);
+                    serverState.value = state;
+                    playerIdsWhoAnswered = state.answers.map((a)=>a.playerId);
+                    playersToAnswer.value = state.players.filter((p) => !playerIdsWhoAnswered.includes(p.id));
+                    console.log("Players to answer");
+                    console.log()
+                })
+
                 return {
+                    socket,
+                    serverState,
                     rawPrompts,
+                    stateToSend,
+                    playersToAnswer,
+                    selectedPlayerToAnswer,
+                    playerAnswer,
+                    sendState,
                     sendPrompts,
                     forceStartVoting,
                     forceNextQuestionVote,
+                    sendPlayerAnswer,
                     resetAll,
                 };
             }

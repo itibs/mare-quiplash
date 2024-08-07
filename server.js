@@ -22,13 +22,56 @@ let cntVotes = 0;
 
 // Game constants
 const INITIAL_PROMPTS = [
-    "The worst superhero power",
-    "A terrible name for a cruise ship",
-    "The last thing you'd want to find in your closet",
-    "If you were alone on an island, you would like to have...",
+    'Predica pe care Adiel Dinu o va ține minte toată viața este ...',
+    'Cu toții știm că Philip nu s-ar muta în veci în altă țară. Mai puțin dacă ...',
+    'Cea mai mare gafă ce poate fi spusă într-o predică de nuntă: ...',
+    'Nu spune niciodată unui polițist: "..."',
+    'Cea mai bizară proorocie pe care o poți primi într-o biserică penticostală: "..."',
+    'Dacă Ap. Pavel ar fi călătorit în timp în vremea noastră, ar zice că ...',
+    'Un lucru pe care îl poți întâlni doar în BER: ...',
+    'O idee proastă de a convinge un coleg să vină la biserică: ...',
+    'Un principiu de nestrămutat în viața Verei este: ...',
+    'Titlu de carte creștină pe care nu te-ai aștepta să o vezi în Cărturești: ...',
+    'Gabi ar merge misionar în Asia cu condiția: ...',
+    'Un lucru interesant pe care l-ai putea găsi într-o Biblie a unui frate în vârstă: ...',
+    'Proba secretă pentru a intra în Corul Evanghelic: ...',
+    'Replica lui Dantes oferindu-i-se o carte arminiană: "..."',
+    'Dacă Alina ar avea mai multe zile de concediu ...',
+    'Un lucru neobișnuit pe care-l poți găsi în cutia dărniciei este: ...',
+    'Un nume biblic pe care nu îndrăznește nimeni să-l pună propriului copil e ...',
+    'Om random din Herăstrău primind sceptic un calendar GBV: "..."',
+    'O regulă atipică pentru o tabără de tineret: ...',
+    'Ceva ce nu ar trebui niciodată să-i spui unui misionar: "..."',
+    'Autor pe care nu te-ai aștepta să-l întâlnești în biblioteca lui Tibi: ...',
+    'Dani M. se ridică în mijlocul adunării cu entuziasm: "haidem să cântăm ...!"',
+    'Un titlu atipic pentru o broșură de evanghelizare: ...',
+    'O mustrare pe care n-ai vrea să o auzi din partea unui necredincios: "..."',
+    'Secret Hitler a fost interzis în tabără după ce...',
+    'Adevăratul motiv pentru care tabara s-a mutat la Harghita: ...',
+    'Un om care merge în Panduri se cunoaște după ...',
+    'Înainte de renovare, Villa Ursu se numea ...',
+    'Ingredientul secret pentru pastele de la prânz a fost ...',
+    'O probă nouă la jocurile olimpice, dedicată lui David Deaconu',
+    'Când nu îmi fac temele, părinții spun că ...',
+    'Dacă ar fi primar, Horia ar forța pe toată lumea să ...',
+    'Dacă nu ar fi plouat, Lucian Gava ar fi ...',
+    'Înainte să vin în tabără m-am asigurat că ...',
+    'Timpul trece foarte greu în tabără atunci când ...',
+    'Cel mai plictisitor joc din tabără este ...',
+    'Un lucru care lipsește din camere este ...'
 ];
 
+const States = {
+    PREGAME: 'PREGAME',
+    ANSWERING: 'ANSWERING',
+    VOTING: 'VOTING',
+    VOTING_RESULTS: 'VOTING_RESULTS',
+    ROUND_RESULTS: 'ROUND_RESULTS',
+    FINISHED: 'FINISHED',
+}
+
 let crtPrompts = INITIAL_PROMPTS;
+let gameState = States.PREGAME;
 
 app.get('/styles.css', (req, res) => {
     res.sendFile(path.join(__dirname, 'styles.css'));
@@ -55,6 +98,7 @@ io.on('connection', (socket) => {
     console.log('A user connected');
 
     socket.on('resetAll', () => {
+        gameState = States.PREGAME;
         players = [];
         disconnectedPlayers = [];
         questions = [];
@@ -69,12 +113,39 @@ io.on('connection', (socket) => {
         io.emit('playerList', players);
     })
 
+    socket.on('receiveState', () => {
+        setInterval(() => {
+            socket.emit('state_dump', {
+                players,
+                questions,
+                answers,
+                votingPhase,
+                crtRound,
+                nextQuestionToVote,
+                cntVotes,
+            })
+        }, 5000);
+    })
+
     socket.on('newPrompts', (prompts) => {
         crtPrompts = prompts;
     });
 
+    // Handle player disconnection
+    socket.on('disconnect', () => {
+        // TODO
+        if (gameState !== States.PREGAME) {
+            return;
+        }
+        players = players.filter(player => player.id !== socket.id);
+        io.emit('playerList', players);
+    });
+
     // Handle player joining
     socket.on('join', (playerName) => {
+        if (gameState !== States.PREGAME) {
+            return;
+        }
         if (players.find((p) => p.id === socket.id)) {
             return;
         }
@@ -86,24 +157,26 @@ io.on('connection', (socket) => {
     });
 
     socket.on('startGame', () => {
+        if (gameState !== States.PREGAME) {
+            return;
+        }
         startGame();
         socket.emit('started');
     });
 
-    // Handle player disconnection
-    socket.on('disconnect', () => {
-        players = players.filter(player => player.id !== socket.id);
-        io.emit('playerList', players);
-    });
-
     // Handle player answers
     socket.on('submitAnswer', (prompt, answer) => {
-        if (!votingPhase) {
-            answers.push({ playerId: socket.id, playerName: getPlayerName(socket.id), prompt: prompt, text: answer, votes: 0 });
-            if (answers.length === players.length) {
-                startVoting();
-            }
+        if (gameState !== States.ANSWERING) {
+            return;
         }
+        answers.push({ playerId: socket.id, playerName: getPlayerName(socket.id), prompt: prompt, text: answer, votes: 0 });
+    });
+
+    socket.on('submitAnswerAsPlayer', (pid, prompt, answer) => {
+        if (gameState !== States.ANSWERING) {
+            return;
+        }
+        answers.push({ playerId: pid, playerName: getPlayerName(pid), prompt: prompt, text: answer, votes: 0 });
     });
 
     socket.on('forceStartVoting', () => {
@@ -122,27 +195,27 @@ io.on('connection', (socket) => {
 
     // Handle votes
     socket.on('vote', (answerId) => {
-        if (votingPhase) {
-            cntVotes++;
-            const answer = answers.find(a => a.playerId === answerId);
-            if (answer) {
-                answer.votes = (answer.votes || 0) + 1;
-                const playerIdx = players.findIndex(p => p.id === answerId);
-                if (playerIdx >= 0) {
-                    players[playerIdx].score += 100;
-                }
-                console.log(players);
-            }
+        if (gameState !== States.VOTING) {
+            return;
+        }
 
-            if (cntVotes >= players.length - 2) {
-                mQuestion = questions[crtRound][nextQuestionToVote];
-                mAnswers = answers.filter((ans) => ans.prompt === mQuestion.prompt);
-                io.emit('votingResults', mQuestion.prompt, mAnswers);
-                setTimeout(() => {
-                    nextQuestionToVote++;
-                    startNextQuestionVoting();
-                }, 8000 / SPEEDUP);
+        cntVotes++;
+        console.log("Got vote from %s. CntVotes is %d", answerId, votingPhase);
+        const answer = answers.find(a => a.playerId === answerId);
+        if (answer) {
+            answer.votes = (answer.votes || 0) + 1;
+            const playerIdx = players.findIndex(p => p.id === answerId);
+            if (playerIdx >= 0) {
+                players[playerIdx].score += 100;
             }
+            console.log(players);
+        }
+
+        console.log(`Condition {cntVotes} >= {players.length}`);
+        if (cntVotes >= players.length - 2) {
+            mQuestion = questions[crtRound][nextQuestionToVote];
+            mAnswers = answers.filter((ans) => ans.prompt === mQuestion.prompt);
+            io.emit('votingResults', mQuestion.prompt, mAnswers);
         }
     });
 });
@@ -163,6 +236,7 @@ function startRound() {
         io.emit("endGame", players)
         return;
     }
+    gameState = States.ANSWERING;
     console.log("Starting round %d", crtRound);
     io.emit('roundStarted', crtRound + 1);
     console.log("Questions:");
@@ -178,7 +252,7 @@ function startRound() {
 }
 
 function startVoting() {
-    votingPhase = true;
+    gameState = States.VOTING;
     nextQuestionToVote = 0;
     startNextQuestionVoting();
 }
