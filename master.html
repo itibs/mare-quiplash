@@ -14,47 +14,137 @@
 <body>
     <div id="app" class="container">
         <h1>Quiplash-like Game - Master</h1>
-        <div v-if="!started" class="section fade-in">
-            <div v-if="players.length === 0">
-                <h2>Waiting for players to join...</h2>
-            </div>
-            <div v-else-if="players.length < 4">
-                <h2>At least 4 players are required to play the game.</h2>
-            </div>
-            <div v-else-if="players.length % 2 === 1">
-                <h2>An even number of players is required to start the game.</h2>
+        
+        <!-- PREGAME Phase -->
+        <div v-if="gameState.phase === 'PREGAME'" class="section fade-in">
+            <h2>Game Setup</h2>
+            <div v-if="gameState.players.length === 0">
+                <p>Waiting for players to join...</p>
             </div>
             <div v-else>
-                <h2>Start Game</h2>
-                <button @click="startGame">Start Game</button>
-            </div>
-            <div v-if="players.length > 0">
-                <div v-if="showScoreboard" class="section">
-                    <table class="scoreboard-table">
-                        <thead>
-                            <tr>
-                                <th>Players joined</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="(player, index) in players" :key="player.id">
-                                <td>{{ player.name }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <h3>Players Joined ({{ gameState.players.length }})</h3>
+                <table class="scoreboard-table">
+                    <thead>
+                        <tr>
+                            <th>Player Name</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="player in gameState.players" :key="player.id">
+                            <td>{{ player.name }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <div class="game-controls">
+                    <div v-if="!gameState.phaseData.canStart" class="requirements">
+                        <p v-if="gameState.players.length < gameState.phaseData.minPlayersNeeded">
+                            <strong>Need at least {{ gameState.phaseData.minPlayersNeeded }} players to start.</strong>
+                        </p>
+                        <p v-else-if="gameState.players.length % 2 === 1">
+                            <strong>Need an even number of players to start.</strong>
+                        </p>
+                    </div>
+                    <div v-else>
+                        <button @click="startGame" class="start-button">Start Game</button>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <div v-else class="fade-in">
-            <div v-if="showRoundForm" class="section">
-                <h2>Round {{ crtRound }}</h2>
+        
+        <!-- ANSWERING Phase -->
+        <div v-if="gameState.phase === 'ANSWERING'" class="section fade-in">
+            <h2>Round {{ gameState.currentRound }} of {{ gameState.totalRounds }}</h2>
+            <div class="game-status">
+                <h3>Players are answering questions...</h3>
+                <div class="progress-info">
+                    <p><strong>Progress:</strong> {{ gameState.phaseData.answersReceived }}/{{ gameState.phaseData.expectedAnswers }} answers received</p>
+                    <p><strong>Questions:</strong> {{ gameState.phaseData.questionsCount }}</p>
+                </div>
+                
+                <div class="player-status">
+                    <h4>Player Status</h4>
+                    <div class="player-grid">
+                        <div v-for="player in gameState.phaseData.playerAnswerStatus" :key="player.name" 
+                             class="player-status-item" :class="{ answered: player.hasAnswered }">
+                            <span class="player-name">{{ player.name }}</span>
+                            <span class="status-icon">{{ player.hasAnswered ? '✅' : '⏳' }}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div v-if="gameState.disconnectedCount > 0" class="disconnected-info">
+                    <p><strong>Disconnected Players:</strong> {{ gameState.disconnectedCount }}</p>
+                </div>
             </div>
-            <div v-if="showEndgame" class="section">
-                <h2>Congrats {{ players[0].name }}!</h2>
+        </div>
+        
+        <!-- VOTING Phase -->
+        <div v-if="gameState.phase === 'VOTING'" class="section fade-in">
+            <h2>Round {{ gameState.currentRound }} of {{ gameState.totalRounds }}</h2>
+            <div class="voting-info">
+                <h3>Voting - Question {{ gameState.phaseData.questionNumber }}/{{ gameState.phaseData.totalQuestions }}</h3>
+                <div class="voting-timer">
+                    <p><strong>Time Left:</strong> {{ gameState.phaseData.timeLeft }} seconds</p>
+                </div>
             </div>
-            <div v-if="showScoreboard" class="section">
-                <h2>Scoreboard</h2>
+            
+            <div class="prompt-section">
+                <h4>Question:</h4>
+                <div class="prompt">{{ gameState.phaseData.prompt }}</div>
+            </div>
+            
+            <div class="answers-section">
+                <h4>Answers:</h4>
+                <div class="answer-list">
+                    <div v-for="answer in gameState.phaseData.answers" :key="answer.id" class="answer-item-static">
+                        <div class="answer-text">{{ answer.text }}</div>
+                        <div class="answer-votes">{{ answer.votes }} votes</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div v-if="gameState.disconnectedCount > 0" class="disconnected-info">
+                <p><strong>Disconnected Players:</strong> {{ gameState.disconnectedCount }}</p>
+            </div>
+        </div>
+        
+        <!-- VOTING_RESULTS Phase -->
+        <div v-if="gameState.phase === 'VOTING_RESULTS'" class="section fade-in">
+            <h2>Round {{ gameState.currentRound }} of {{ gameState.totalRounds }}</h2>
+            <div class="voting-results-info">
+                <h3>Results - Question {{ gameState.phaseData.questionNumber }}/{{ gameState.phaseData.totalQuestions }}</h3>
+            </div>
+            
+            <div class="prompt-section">
+                <h4>Question:</h4>
+                <div class="prompt">{{ gameState.phaseData.prompt }}</div>
+            </div>
+            
+            <div class="results-section">
+                <h4>Results:</h4>
+                <div class="results-container">
+                    <div v-for="result in gameState.phaseData.results" :key="result.text" class="result-box">
+                        <div class="result-content">
+                            <div class="result-text">{{ result.text }}</div>
+                            <div class="result-votes">{{ result.votes }} votes</div>
+                            <div class="result-score">+{{ result.score }} points</div>
+                        </div>
+                        <div class="result-player">{{ result.author }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ROUND_RESULTS Phase -->
+        <div v-if="gameState.phase === 'ROUND_RESULTS'" class="section fade-in">
+            <h2>Round {{ gameState.currentRound }} Complete!</h2>
+            <div class="round-results-info">
+                <h3>Current Standings</h3>
+                <p>Next round starts in {{ gameState.phaseData.timeToNextRound }} seconds</p>
+            </div>
+            
+            <div class="scoreboard-section">
                 <table class="scoreboard-table ranking">
                     <thead>
                         <tr>
@@ -64,7 +154,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="(player, index) in players" :key="player.id">
+                        <tr v-for="(player, index) in gameState.phaseData.scoreboard" :key="player.id">
                             <td class="rank">{{ index + 1 }}</td>
                             <td>{{ player.name }}</td>
                             <td>{{ player.score }}</td>
@@ -72,142 +162,254 @@
                     </tbody>
                 </table>
             </div>
-            <div v-if="showVoting" class="section">
-                <div class="prompt">{{ prompt }}</div>
-                <div class="answer-list">
-                    <div v-for="ans in votingAnswers" :key="ans.playerId" class="answer-item-static">
-                        {{ ans.text }}
-                    </div>
-                </div>
+        </div>
+        
+        <!-- FINISHED Phase -->
+        <div v-if="gameState.phase === 'FINISHED'" class="section fade-in">
+            <h2>Game Complete!</h2>
+            <div class="game-finished-info">
+                <h3 v-if="gameState.phaseData.winner">Congratulations {{ gameState.phaseData.winner.name }}!</h3>
+                <h3 v-else>Game Complete!</h3>
             </div>
-            <div v-if="showVotingResults" class="section">
-                <div class="prompt">{{ prompt }}</div>
-                <div class="results-container">
-                    <div v-for="ans in votingAnswers" :key="ans.playerId" class="result-box">
-                        <div class="result-content">
-                            <div class="result-text">{{ ans.text }}</div>
-                            <div class="result-votes">{{ ans.votes }}</div>
-                        </div>
-                        <div class="result-player">{{ ans.playerName }}</div>
-                    </div>
-                </div>
+            
+            <div class="final-scoreboard-section">
+                <h4>Final Results</h4>
+                <table class="scoreboard-table ranking">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Player</th>
+                            <th>Final Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(player, index) in gameState.phaseData.finalScoreboard" :key="player.id"
+                            :class="{ winner: index === 0 }">
+                            <td class="rank">{{ index + 1 }}</td>
+                            <td>{{ player.name }}</td>
+                            <td>{{ player.score }}</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
+            
+            <div class="game-controls">
+                <button @click="playAgain" class="play-again-button">Play Again</button>
+            </div>
+        </div>
+        
+        <!-- Loading state -->
+        <div v-if="!gameState.phase" class="section fade-in">
+            <h2>Loading...</h2>
+            <p>Connecting to game server...</p>
         </div>
     </div>
 
     <script>
-        const { createApp, ref, computed } = Vue;
+        const { createApp, ref } = Vue;
 
         const app = createApp({
             setup() {
                 const socket = io();
-                const started = ref(false);
-                const playerName = ref('');
-                const players = ref([]);
-                const crtRound = ref('');
-                const prompt = ref('');
-                const answer = ref('');
-                const showRoundForm = ref(false);
-                const showEndgame = ref(false);
-                const showVoting = ref(false);
-                const showVotingResults = ref(false);
-                const showScoreboard = ref(true);
-                const votingAnswers = ref([]);
-                const results = ref([]);
+                const gameState = ref({
+                    phase: null,
+                    players: [],
+                    disconnectedCount: 0,
+                    currentRound: 1,
+                    totalRounds: 2,
+                    phaseData: {}
+                });
 
                 const startGame = () => {
                     socket.emit('startGame');
                 };
 
-                const restartGame = () => {
-                    socket.emit('restartGame');
+                const playAgain = () => {
+                    socket.emit('resetAll');
                 };
 
-                const submitAnswer = () => {
-                    if (answer.value) {
-                        socket.emit('submitAnswer', answer.value);
-                        showRoundForm.value = false;
-                    }
-                };
-
-                const vote = (answerId) => {
-                    socket.emit('vote', answerId);
-                    showVoting.value = false;
-                };
-
-                socket.on('started', (data) => {
-                    started.value = true;
-                    showScoreboard.value = false;
+                // Listen to the single updateState event
+                socket.on('updateState', (state) => {
+                    console.log('Received game state update:', state);
+                    gameState.value = state;
                 });
 
-                socket.on('playerList', (playerList) => {
-                    console.log(showScoreboard.value);
-                    players.value = playerList;
-                });
-
-                socket.on('roundStarted', (round) => {
-                    crtRound.value = round;
-                    showRoundForm.value = true;
-                    showVoting.value = false;
-                    showVotingResults.value = false;
-                    showScoreboard.value = false;
-                    results.value = [];
-                });
-
-                socket.on('startVoting', (mPrompt, mAnswers) => {
-                    prompt.value = mPrompt;
-                    votingAnswers.value = mAnswers;
-                    showVoting.value = true;
-                    showVotingResults.value = false;
-                });
-
-                socket.on('votingResults', (mPrompt, mAnswers) => {
-                    prompt.value = mPrompt;
-                    votingAnswers.value = mAnswers;
-                    showVoting.value = false;
-                    showVotingResults.value = true;
-                });
-
-                socket.on('roundEnd', (mPlayers) => {
-                    players.value = mPlayers.sort((p1, p2) => p2.score - p1.score);
-                    showVotingResults.value = false;
-                    showScoreboard.value = true;
-                });
-
-                socket.on('endGame', (mPlayers) => {
-                    players.value = mPlayers.sort((p1, p2) => p2.score - p1.score);
-                    showVotingResults.value = false;
-                    showRoundForm.value = false;
-                    showEndgame.value = true;
-                    showScoreboard.value = true;
-                });
-
-                socket.emit('getPlayerList');
+                // Request initial game state when page loads
+                socket.emit('getCurrentGameState');
 
                 return {
-                    started,
-                    playerName,
-                    players,
-                    crtRound,
-                    prompt,
-                    answer,
-                    showRoundForm,
-                    showEndgame,
-                    showVoting,
-                    showScoreboard,
-                    showVotingResults,
-                    votingAnswers,
-                    results,
+                    gameState,
                     startGame,
-                    restartGame,
-                    submitAnswer,
-                    vote
+                    playAgain
                 };
             }
         });
 
         app.mount('#app');
     </script>
+    
+    <style>
+        .player-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .player-status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background-color: #f5f5f5;
+            border: 2px solid #ddd;
+        }
+        
+        .player-status-item.answered {
+            background-color: #e8f5e8;
+            border-color: #4caf50;
+        }
+        
+        .player-name {
+            font-weight: bold;
+        }
+        
+        .status-icon {
+            font-size: 18px;
+        }
+        
+        .start-button, .play-again-button {
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        
+        .start-button:hover, .play-again-button:hover {
+            background-color: #45a049;
+        }
+        
+        .requirements {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+        
+        .voting-timer {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .disconnected-info {
+            background-color: #ffebee;
+            border: 1px solid #ffcdd2;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 20px;
+            color: #c62828;
+        }
+        
+        .answer-item-static {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .answer-text {
+            flex: 1;
+        }
+        
+        .answer-votes {
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .result-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+        }
+        
+        .result-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .result-text {
+            flex: 1;
+        }
+        
+        .result-votes {
+            font-weight: bold;
+            color: #007bff;
+            margin-left: 10px;
+        }
+        
+        .result-score {
+            font-weight: bold;
+            color: #28a745;
+            margin-left: 10px;
+        }
+        
+        .result-player {
+            font-style: italic;
+            color: #6c757d;
+        }
+        
+        .winner {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+        }
+        
+        .progress-info {
+            background-color: #e3f2fd;
+            border: 1px solid #bbdefb;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .voting-results-info {
+            background-color: #f3e5f5;
+            border: 1px solid #e1bee7;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .round-results-info {
+            background-color: #e8f5e8;
+            border: 1px solid #c8e6c9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .game-finished-info {
+            background-color: #fff8e1;
+            border: 1px solid #ffecb3;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+    </style>
 </body>
 
 </html>

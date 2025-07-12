@@ -1,0 +1,36 @@
+config:
+  target: 'ws://localhost:3000'
+  phases:
+    - duration: 60
+      arrivalRate: 1
+      maxVusers: 20
+  socketio:
+    transports: ['websocket']
+    timeout: 10000
+    upgrade: true
+    rememberUpgrade: true
+    
+scenarios:
+  - name: "Quiplash Player Simulation"
+    engine: socketio
+    weight: 100
+    flow:
+      - think: 1
+      - emit:
+          channel: "join"
+          data: "TestPlayer{{ $randomNumber(1, 1000) }}"
+      - think: 2
+      - wait:
+          seconds: 2
+      - emit:
+          channel: "submitAnswer"
+          data: 
+            - "Test prompt"
+            - "Random funny answer {{ $randomNumber(1, 100) }}"
+      - think: 3
+      - wait:
+          seconds: 5
+      - emit:
+          channel: "vote"
+          data: "{{ $randomString() }}"
+      - think: 2 

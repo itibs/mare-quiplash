@@ -120,6 +120,28 @@
                     alert('The game is full. Please try again later.');
                 });
 
+                socket.on('gameInProgress', (message) => {
+                    alert(message);
+                });
+
+                socket.on('gamePaused', (message) => {
+                    alert(message);
+                });
+
+                // Handle disconnection and reconnection
+                socket.on('disconnect', () => {
+                    if (joined.value) {
+                        console.log('Disconnected from server, attempting to reconnect...');
+                    }
+                });
+
+                socket.on('connect', () => {
+                    if (joined.value && playerName.value) {
+                        console.log('Reconnected to server, rejoining game...');
+                        socket.emit('join', playerName.value);
+                    }
+                });
+
                 return {
                     joined,
                     playerName,
