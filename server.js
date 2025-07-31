@@ -878,7 +878,12 @@ process.on('SIGINT', () => {
     process.exit(0);
 });
 
-http.listen(port, () => {
+http.listen(port, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${port}`);
     console.log(`📊 Monitoring connections and game state...`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`📡 Server accessible on all interfaces (0.0.0.0:${port})`);
+}).on('error', (err) => {
+    console.error('❌ Server failed to start:', err);
+    process.exit(1);
 });
