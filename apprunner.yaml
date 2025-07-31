@@ -2,9 +2,8 @@ version: 1.0
 runtime: nodejs18
 build:
   commands:
-    install:
-      - npm ci
     build:
+      - npm ci
       - echo "Build completed"
 run:
   runtime-version: 18
