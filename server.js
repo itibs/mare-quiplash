@@ -269,12 +269,23 @@ io.on('connection', (socket) => {
                 // Emit updated game state to master screens
                 emitGameState();
                 
-                // Send them their current prompt if in answering phase
+                // Send them their first unanswered prompt if in answering phase
                 if (gameState === States.ANSWERING) {
-                    const playerQuestion = questions[crtRound].find((question) => 
+                    const playerQuestions = questions[crtRound].filter((question) => 
                         question.players.some(p => p.name === playerName));
-                    if (playerQuestion) {
-                        socket.emit('newPrompt', playerQuestion.prompt);
+                    
+                    // Find the first unanswered question
+                    const firstUnansweredQuestion = playerQuestions.find(question => {
+                        const hasAnswered = answers.some(answer => 
+                            answer.playerName === playerName && answer.prompt === question.prompt);
+                        return !hasAnswered;
+                    });
+                    
+                    if (firstUnansweredQuestion) {
+                        console.log(`📨 Sending first unanswered prompt to reconnected ${playerName}: "${firstUnansweredQuestion.prompt.substring(0, 50)}..."`);
+                        socket.emit('newPrompt', firstUnansweredQuestion.prompt);
+                    } else {
+                        console.log(`✅ All prompts already answered by reconnected ${playerName}`);
                     }
                 }
             } else {
@@ -331,6 +342,22 @@ io.on('connection', (socket) => {
         
         answers.push({ playerId: socket.id, playerName: getPlayerName(socket.id), prompt: prompt, text: answer, votes: 0 });
         console.log(`✅ Answer stored. Total answers: ${answers.length}`);
+        
+        // Check if this player has more unanswered questions and send the next one
+        const playerName = getPlayerName(socket.id);
+        const playerQuestions = questions[crtRound].filter((question) => 
+            question.players.some(p => p.name === playerName));
+        
+        const nextUnansweredQuestion = playerQuestions.find(question => {
+            const hasAnswered = answers.some(answer => 
+                answer.playerName === playerName && answer.prompt === question.prompt);
+            return !hasAnswered;
+        });
+        
+        if (nextUnansweredQuestion) {
+            console.log(`📨 Sending next unanswered prompt to ${playerName}: "${nextUnansweredQuestion.prompt.substring(0, 50)}..."`);
+            socket.emit('newPrompt', nextUnansweredQuestion.prompt);
+        }
         
         // Check if we have all answers for this round
         const expectedAnswers = questions[crtRound].length * 2; // 2 answers per question
