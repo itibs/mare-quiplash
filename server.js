@@ -135,6 +135,16 @@ io.on('connection', (socket) => {
     
     console.log(`👤 User connected: ${socket.id} (Total: ${totalConnections}, Peak: ${peakConnections})`);
 
+    // Send game state and disconnected players list
+    socket.emit('gameStateInfo', {
+        gameInProgress: gameState !== States.PREGAME,
+        disconnectedPlayers: gameState !== States.PREGAME ? disconnectedPlayers.map(p => ({
+            name: p.name,
+            score: p.score,
+            disconnectedAt: p.disconnectedAt
+        })) : []
+    });
+
     socket.on('resetAll', () => {
         gameState = States.PREGAME;
         players = [];

@@ -16,8 +16,35 @@
         <h1>Quiplash-like Game - Player</h1>
         <div v-if="!joined" class="section fade-in">
             <h2>Join Game</h2>
-            <input v-model="playerName" placeholder="Enter your name" class="name-input">
-            <button @click="joinGame">Join</button>
+            
+            <!-- Game in progress - show reconnection options only -->
+            <div v-if="gameInProgress">
+                <div v-if="disconnectedPlayers.length > 0" class="reconnect-section">
+                    <h3>Reconnect as a previous player:</h3>
+                    <div class="disconnected-players-list">
+                        <div v-for="player in disconnectedPlayers" :key="player.name" 
+                             class="disconnected-player-item" @click="reconnectAs(player.name)">
+                            <div class="player-info">
+                                <div class="player-name">{{ player.name }}</div>
+                                <div class="player-score">Score: {{ player.score }}</div>
+                            </div>
+                            <div class="reconnect-indicator">Click to reconnect</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div v-else class="no-reconnect-available">
+                    <h3>Game in Progress</h3>
+                    <p>A game is currently running. You can only join if you were previously playing and got disconnected.</p>
+                    <p>No disconnected players are available for reconnection.</p>
+                </div>
+            </div>
+            
+            <!-- Game not started - allow new players -->
+            <div v-else class="manual-join">
+                <input v-model="playerName" placeholder="Enter your name" class="name-input">
+                <button @click="joinGame">Join</button>
+            </div>
         </div>
 
         <div v-else class="fade-in">
@@ -58,6 +85,8 @@
                 const playerName = ref('');
                 const myPlayerId = ref('');
                 const players = ref([]);
+                const disconnectedPlayers = ref([]);
+                const gameInProgress = ref(false);
                 const prompt = ref('');
                 const answer = ref('');
                 const showAnswerForm = ref(false);
@@ -69,6 +98,11 @@
                     if (playerName.value) {
                         socket.emit('join', playerName.value);
                     }
+                };
+
+                const reconnectAs = (name) => {
+                    playerName.value = name;
+                    socket.emit('join', name);
                 };
 
                 const submitAnswer = () => {
@@ -142,10 +176,18 @@
                     }
                 });
 
+                socket.on('gameStateInfo', (data) => {
+                    gameInProgress.value = data.gameInProgress;
+                    disconnectedPlayers.value = data.disconnectedPlayers;
+                    console.log('Received game state info:', data);
+                });
+
                 return {
                     joined,
                     playerName,
                     players,
+                    disconnectedPlayers,
+                    gameInProgress,
                     prompt,
                     answer,
                     showAnswerForm,
@@ -153,6 +195,7 @@
                     votingAnswers,
                     results,
                     joinGame,
+                    reconnectAs,
                     submitAnswer,
                     vote
                 };
@@ -161,6 +204,108 @@
 
         app.mount('#app');
     </script>
+    
+    <style>
+        .reconnect-section {
+            margin-bottom: 20px;
+        }
+        
+        .disconnected-players-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .disconnected-player-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .disconnected-player-item:hover {
+            border-color: #007bff;
+            background-color: #e3f2fd;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .player-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .player-name {
+            font-weight: bold;
+            font-size: 16px;
+            color: #333;
+        }
+        
+        .player-score {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .reconnect-indicator {
+            font-size: 14px;
+            color: #007bff;
+            font-weight: 500;
+        }
+        
+        .separator {
+            text-align: center;
+            margin: 20px 0;
+            position: relative;
+        }
+        
+        .separator::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background-color: #ddd;
+        }
+        
+        .separator span {
+            background-color: white;
+            padding: 0 15px;
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .manual-join h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .no-reconnect-available {
+            text-align: center;
+            padding: 30px;
+            background-color: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            color: #6c757d;
+        }
+        
+        .no-reconnect-available h3 {
+            color: #495057;
+            margin-bottom: 15px;
+        }
+        
+        .no-reconnect-available p {
+            margin: 10px 0;
+            line-height: 1.5;
+        }
+    </style>
 </body>
 
 </html>
