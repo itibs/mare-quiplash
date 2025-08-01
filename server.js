@@ -530,6 +530,8 @@ function emitGameState() {
             if (questions[crtRound] && nextQuestionToVote < questions[crtRound].length) {
                 const currentQuestion = questions[crtRound][nextQuestionToVote];
                 const currentAnswers = answers.filter(ans => ans.prompt === currentQuestion.prompt);
+                const totalVotes = currentAnswers.reduce((sum, ans) => sum + (ans.votes || 0), 0);
+                
                 state.phaseData = {
                     prompt: currentQuestion.prompt,
                     answers: currentAnswers.map(ans => ({
@@ -540,8 +542,11 @@ function emitGameState() {
                     })),
                     questionNumber: nextQuestionToVote + 1,
                     totalQuestions: questions[crtRound].length,
+                    totalVotes: totalVotes,
                     timeLeft: 30 // This could be made dynamic based on the actual timer
                 };
+                
+                console.log(`📊 Voting data for master: ${currentAnswers.length} answers, ${totalVotes} total votes`);
             }
             break;
 
@@ -670,6 +675,14 @@ function startNextQuestionVoting() {
     
     mAnswers = answers.filter((ans) => ans.prompt === mQuestion.prompt);
     cntVotes = 0;
+    
+    // Debug: Log the answers for this question
+    console.log(`📋 Answers for current question "${mQuestion.prompt.substring(0, 50)}...":`, 
+        mAnswers.map(ans => `"${ans.text}" by ${ans.playerName}`));
+    
+    if (mAnswers.length === 0) {
+        console.log('⚠️  No answers found for current question!');
+    }
     
     // Reset voting flags for all connected players
     io.sockets.sockets.forEach(socket => {
