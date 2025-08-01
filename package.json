@@ -1,10 +1,14 @@
 {
   "name": "qp2",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "server.js",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "echo \"No build step required for this app\"",
+    "build": "npm install",
     "start": "node server.js",
     "test-load": "node test-load.js",
     "test-load-20": "node test-load.js 20",
@@ -12,7 +16,7 @@
     "test-duplicates": "node test-duplicates.js",
     "test-debug": "node test-debug.js"
   },
-  "keywords": [],
+  "keywords": ["game", "quiplash", "websocket", "multiplayer"],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -20,7 +24,6 @@
     "socket.io": "^4.7.2",
     "socket.io-client": "^4.7.2"
   },
-  "devDependencies": {
-  },
-  "description": ""
+  "devDependencies": {},
+  "description": "A real-time multiplayer Quiplash-style game"
 }
