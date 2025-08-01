@@ -99,8 +99,10 @@
                 <div class="answer-list">
                     <div v-for="answer in gameState.phaseData.answers" :key="answer.id" class="answer-item-static">
                         <div class="answer-text">{{ answer.text }}</div>
-                        <div class="answer-votes">{{ answer.votes }} votes</div>
                     </div>
+                </div>
+                <div class="total-votes" style="margin-top: 1em;">
+                    <strong>Total Votes:</strong> {{ gameState.phaseData.totalVotes }}
                 </div>
             </div>
             
